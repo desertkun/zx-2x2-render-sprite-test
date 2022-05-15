@@ -10,6 +10,20 @@ public _render_sprite
 render_sprite_buffer:
     defs 128                            ; 4x4 buffer of 8 bytes characters
 
+    ; data in this buffer is arranged like so (X x Y), left to right top to bottom:
+    ;
+    ; [byte 0 of tile 0x0] [byte 0 of tile 1x0] [byte 0 of tile 2x0] [byte 0 of tile 3x0]
+    ; [byte 1 of tile 0x0] [byte 1 of tile 1x0] [byte 1 of tile 2x0] [byte 1 of tile 3x0]
+    ; ...
+    ; [byte 7 of tile 0x0] [byte 7 of tile 1x0] [byte 7 of tile 2x0] [byte 7 of tile 3x0]
+    ;
+    ; [byte 0 of tile 0x1] [byte 0 of tile 1x1] [byte 0 of tile 2x1] [byte 0 of tile 3x1]
+    ; [byte 1 of tile 0x1] [byte 1 of tile 1x1] [byte 1 of tile 2x1] [byte 1 of tile 3x1]
+    ; ...
+    ; [byte 7 of tile 0x1] [byte 7 of tile 1x1] [byte 7 of tile 2x1] [byte 7 of tile 3x1]
+    ;
+    ; and so on for two more rows
+
 render_sprite_color_buffer:
     defs 16                             ; 4x4 buffer for color info
 
