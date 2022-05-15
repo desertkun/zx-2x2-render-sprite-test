@@ -1,0 +1,11 @@
+    call render_sprite_bake_color
+    inc c
+    call render_sprite_bake_color
+    inc c
+    call render_sprite_bake_color
+    inc c
+    call render_sprite_bake_color
+    inc b
+    dec c
+    dec c
+    dec c

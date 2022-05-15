@@ -1,0 +1,17 @@
+
+/* png2c.py 1.4.3
+ *
+ * tiles.png (128x16)
+ * 16.0 x 2.0 (25 unique)
+ *
+ * base: 128
+ */
+
+#define TILES_BASE 128
+#define TILES_LEN 25
+unsigned char tiles[] = {
+0x02, 0x80, 0x08, 0x00, 0x40, 0x01, 0x00, 0x10, // y:1, x:5 (147)
+0x00, 0x66, 0x19, 0x14, 0x0a, 0x0a, 0x08, 0x10, // y:1, x:6 (148)
+};
+ 
+unsigned char tile_colors[] = {0x1, 0x4};
