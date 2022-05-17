@@ -24,9 +24,6 @@ render_sprite_buffer:
     ;
     ; and so on for two more rows
 
-render_sprite_color_buffer:
-    defs 16                             ; 4x4 buffer for color info
-
 render_sprite_fn_buffer:
     ; render render_sprite_buffer onto the screen
     ; bc points to screen location (b - y, c - x)
@@ -182,12 +179,11 @@ __render_sprite_preshifted:
 
     dec b
     dec b
-    dec b
-    dec b                               ; unwind 4 rows
+    dec b                               ; unwind 3 rows
 
 __render_sprite_baked:
 
-    ; render 16 tiles (4 tiles for each row)
+    ; render 9 tiles (3 tiles for each row)
 
     ld de, render_sprite_buffer
     call render_sprite_fn_buffer
