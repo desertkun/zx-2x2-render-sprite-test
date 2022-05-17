@@ -98,100 +98,6 @@ render_sprite_bake_backgound_tile_loop:
     pop bc                              ; restore screen location
     ret
 
-render_sprite_preshift_tile:
-    ; pre-shift one tile off a sprite to render_sprite_buffer
-    ; ix should point to sprite data, it gets shifted as sprite data is consumed
-    ; de points on the render_sprite_buffer
-    ; bc points to the offsets (8 bits max, b - vertically, c - horisontally)
-    ; affected: hl, de, ix
-
-    push bc                             ; preserve bc (pixel offsets)
-
-    push de
-    ld h, 0
-    ld a, 8
-    sub c                               ; 2 pixels means 6 jump skips (__render_sprite_tile_shift)
-    add a
-    add a
-    ld l, a
-    ld de, __render_sprite_tile_shift
-    add hl, de                          ; store a number of shifts
-    pop de
-
-    push hl
-
-    ld h, 0                             ; shifting vertically is easy
-    ld l, b                             ; just shift hl pointer by B * 4
-
-    add hl, hl
-    add hl, hl                          ; multiply ix by 4
-    add hl, de                          ; shift hl (render_sprite_buffer pointer)
-    ld bc, hl                           ; by B lines, so hl is now shifted vertically
-
-    pop hl
-
-    ld a, 8                             ; b is now free, we can use it to count 8 times
-
-render_sprite_tile_loop:
-    ex af, af'
-
-    ld d, (ix)                          ; (ix) -> d, 0 -> e
-    ld e, 0                             ; de now contains 8 bits of pixel data, ready to be shifted right
-    inc ix                              ; onto next sprite data byte
-
-    jp (hl)
-
-__render_sprite_tile_shift:
-    ; ever shift here take 4 bytes
-    ; hl uses that, as it contains address __render_sprite_tile_shift shifted
-    ; by 4 times the c
-    ; 1
-    srl d
-    rr  e
-    ; 2
-    srl d
-    rr  e
-    ; 3
-    srl d
-    rr  e
-    ; 4
-    srl d
-    rr  e
-    ; 5
-    srl d
-    rr  e
-    ; 6
-    srl d
-    rr  e
-    ; 7
-    srl d
-    rr  e
-    ; 8
-    srl d
-    rr  e
-
-__render_sprite_tile_shift_done:
-    ld a, (bc)                          ; push shifted pixels onto render_sprite_buffer pointer
-    or d
-    ld (bc), a                          ; put first byte
-    inc bc
-    ld a, (bc)
-    or e
-    ld (bc), a                          ; put second byte
-
-    inc bc                              ; onto next render_sprite_buffer row (4 - 1)
-    inc bc
-    inc bc
-
-    ex af, af'
-    dec a
-__render_sprite_preshift_tile_bf:
-    jp nz, render_sprite_tile_loop      ; loop 8 times
-
-    pop bc                              ; restore bc (pixel offsets)
-__render_sprite_preshift_tile_done:
-    ret
-
 _render_sprite:
     ; stack arguments:
     ; - xy offset in pixels
@@ -207,19 +113,55 @@ _render_sprite:
     ldir                                ; zero out render_sprite_buffer
 
     pop bc                              ; get xy offset in pixels
+
+    ; pre-shift the 2x2 sprite onto the buffer
+    ; we do this row-by-row, there's 16 of them, each row has 2 bytes worth of data
+
+    ld h, 0                             ; shifting vertically is easy
+    ld l, b                             ; just shift hl pointer by B * 4
+
+    add hl, hl
+    add hl, hl                          ; multiply ix by 4
+    ld de, render_sprite_buffer
+    add hl, de                          ; shift hl (render_sprite_buffer pointer)
+
     pop ix                              ; get pointer to sprite data
 
-    ld de, render_sprite_buffer        ; pre-shift tile 0x0 into buffer 0x0
-    call render_sprite_preshift_tile
+    ld a, 16                            ; we need to count 16 rows (two rows of 8 row characters)
 
-    ld de, render_sprite_buffer + 1    ; pre-shift tile 1x0 into buffer 1x0
-    call render_sprite_preshift_tile
+render_sprite_tile_loop:
+    ex af, af'
 
-    ld de, render_sprite_buffer + 32    ; pre-shift tile 0x1 into buffer 0x1
-    call render_sprite_preshift_tile
+    ld d, (ix)                          ; d - tile 0
+    inc ix
+    ld e, (ix)                          ; e - tile 1
+    inc ix
+    ld b, 0                             ; b - tile 2
 
-    ld de, render_sprite_buffer + 33    ; pre-shift tile 1x1 into buffer 1x1
-    call render_sprite_preshift_tile
+    ld a, c
+    cp 0
+    jp z, render_sprite_tile_shift_done ; skip if no shifts at all
+
+render_sprite_tile_sh_once:
+    srl d                               ; shift right [deb]
+    rr e
+    rr b
+    dec a
+    jp nz, render_sprite_tile_sh_once   ; loop C times
+
+render_sprite_tile_shift_done:
+
+    ld (hl), d
+    inc hl
+    ld (hl), e
+    inc hl
+    ld (hl), b
+    inc hl
+    inc hl
+
+    ex af, af'
+    dec a
+    jp nz, render_sprite_tile_loop      ; loop 8 times
 
 __render_sprite_preshifted:
 
@@ -231,13 +173,11 @@ __render_sprite_preshifted:
     ; now we have to bake 4x4 onto the buffer
     ld de, render_sprite_buffer
 
-    ; bake 4 rows (4 columns each)
+    ; bake 3 rows (3 columns each)
     include "client_graphics_inc/render_sprite_bake_bg_tile_row.inc"
     ld de, render_sprite_buffer + 32
     include "client_graphics_inc/render_sprite_bake_bg_tile_row.inc"
     ld de, render_sprite_buffer + 64
-    include "client_graphics_inc/render_sprite_bake_bg_tile_row.inc"
-    ld de, render_sprite_buffer + 96
     include "client_graphics_inc/render_sprite_bake_bg_tile_row.inc"
 
     dec b
