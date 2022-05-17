@@ -33,8 +33,6 @@ render_sprite_fn_buffer:
     ; de points on the render_sprite_buffer
     ; affected: hl
 
-    push de                             ; preserve de
-
     ld hl, bc
     call asm_zx_cxy2saddr               ; hl now holds screen address
 
@@ -46,8 +44,6 @@ render_sprite_fn_buffer:
     include "client_graphics_inc/render_sprite_fn_buffer.inc"
     include "client_graphics_inc/render_sprite_fn_buffer.inc"
     include "client_graphics_inc/render_sprite_fn_buffer.inc"
-
-    pop de                              ; restore de
 
     ret
 
@@ -196,38 +192,6 @@ __render_sprite_preshift_tile_bf:
 __render_sprite_preshift_tile_done:
     ret
 
-render_sprite_bake_color:
-    ; bc - screen location
-    ; de - target color buffer
-    ; affected: hl
-
-    push bc                             ; preserve screen location
-
-    ld h, 0
-    ld l, b
-    add hl, hl
-    add hl, hl
-    add hl, hl
-    add hl, hl
-    add hl, hl                          ; multiply by 32
-    ld b, 0
-    add hl, bc
-    ld bc, _screen_characters
-    add hl, bc
-
-    ld b, 0
-    ld c, (hl)                          ; get the tile index at the coords
-
-    ld hl, _tile_colors
-    add hl, bc
-
-    ld a, (hl)                          ; get the color at the location
-    ld (de), a                          ; put it onto the buffer
-    inc de
-
-    pop bc                              ; restore location
-    ret
-
 _render_sprite:
     ; stack arguments:
     ; - xy offset in pixels
@@ -245,16 +209,16 @@ _render_sprite:
     pop bc                              ; get xy offset in pixels
     pop ix                              ; get pointer to sprite data
 
-    ld de, render_sprite_buffer + 33    ; pre-shift tile 0x0 into buffer 1x1
+    ld de, render_sprite_buffer        ; pre-shift tile 0x0 into buffer 0x0
     call render_sprite_preshift_tile
 
-    ld de, render_sprite_buffer + 34    ; pre-shift tile 1x0 into buffer 2x1
+    ld de, render_sprite_buffer + 1    ; pre-shift tile 1x0 into buffer 1x0
     call render_sprite_preshift_tile
 
-    ld de, render_sprite_buffer + 65    ; pre-shift tile 0x1 into buffer 1x2
+    ld de, render_sprite_buffer + 32    ; pre-shift tile 0x1 into buffer 0x1
     call render_sprite_preshift_tile
 
-    ld de, render_sprite_buffer + 66    ; pre-shift tile 1x1 into buffer 2x2
+    ld de, render_sprite_buffer + 33    ; pre-shift tile 1x1 into buffer 1x1
     call render_sprite_preshift_tile
 
 __render_sprite_preshifted:
@@ -262,25 +226,7 @@ __render_sprite_preshifted:
     ; render_sprite_tile now contains baked pre-shifted tile set
     ; we now need to xor it with "background" of tiles
 
-    pop de                              ; get xy location
-    push bc                             ; push offets onto stack
-    ld bc, de                           ; get xy in characters into bc, but push offsets onto stack instead
-
-    dec b                               ; shift screen position by 1x1 to left/up
-    dec c
-
-    ; bake color tiles onto render_sprite_color_buffer
-    ld de, render_sprite_color_buffer
-
-    include "client_graphics_inc/render_sprite_bake_color_row.inc"
-    include "client_graphics_inc/render_sprite_bake_color_row.inc"
-    include "client_graphics_inc/render_sprite_bake_color_row.inc"
-    include "client_graphics_inc/render_sprite_bake_color_row.inc"
-
-    dec b
-    dec b
-    dec b
-    dec b                               ; unwind 4 rows (winded by 4 lines above)
+    pop bc                              ; get xy location
 
     ; now we have to bake 4x4 onto the buffer
     ld de, render_sprite_buffer
@@ -304,73 +250,13 @@ __render_sprite_baked:
     ; render 16 tiles (4 tiles for each row)
 
     ld de, render_sprite_buffer
-    include "client_graphics_inc/render_sprite_fn_buffer_row.inc"
+    call render_sprite_fn_buffer
+    inc b
     ld de, render_sprite_buffer + 32
-    include "client_graphics_inc/render_sprite_fn_buffer_row.inc"
+    call render_sprite_fn_buffer
+    inc b
     ld de, render_sprite_buffer + 64
-    include "client_graphics_inc/render_sprite_fn_buffer_row.inc"
-    ld de, render_sprite_buffer + 96
-    include "client_graphics_inc/render_sprite_fn_buffer_row.inc"
-
-    dec b
-    dec b
-    dec b
-    dec b                               ; unwind 4 rows
-
-    pop hl                              ; get offsets into hl
-    pop de                              ; pop color into e
-
-    ; update color buffer with 4 (probably 9) tiles
-
-    ld a, e
-    ld (render_sprite_color_buffer + 5), a
-    ld (render_sprite_color_buffer + 6), a
-
-    ld a, l
-    or a
-    jp z, __render_sprite_bake_color_skip_3x1
-    ld a, e
-    ld (render_sprite_color_buffer + 7), a
-__render_sprite_bake_color_skip_3x1:
-
-    ld a, e
-    ld (render_sprite_color_buffer + 9), a
-    ld (render_sprite_color_buffer + 10), a
-
-    ld a, l
-    or a
-    jp z, __render_sprite_bake_color_skip_3x2
-    ld a, e
-    ld (render_sprite_color_buffer + 11), a
-__render_sprite_bake_color_skip_3x2:
-
-    ld a, h
-    or a
-    jp z, __render_sprite_bake_color_skip_row_4
-
-    ld a, e
-    ld (render_sprite_color_buffer + 13), a
-    ld (render_sprite_color_buffer + 14), a
-
-    ld a, l
-    or a
-    jp z, __render_sprite_bake_color_skip_3x3
-    ld a, e
-    ld (render_sprite_color_buffer + 15), a
-
-__render_sprite_bake_color_skip_3x3:
-__render_sprite_bake_color_skip_row_4:
-
-    ; recolor 4x4 block for the sprite
-    ld de, render_sprite_color_buffer
-
-    ld hl, bc
-    call asm_zx_cxy2aaddr               ; get attr address into hl
-
-    include "client_graphics_inc/fn_color.inc"              ; bake color onto 4 rows
-    include "client_graphics_inc/fn_color.inc"
-    include "client_graphics_inc/fn_color.inc"
-    include "client_graphics_inc/fn_color.inc"
+    call render_sprite_fn_buffer
 
     push iy
     ret

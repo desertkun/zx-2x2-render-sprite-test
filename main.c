@@ -11,5 +11,5 @@ unsigned char testing[] = {
 
 int main()
 {
-    render_sprite(INK_RED | PAPER_WHITE | BRIGHT, 0x0404, testing, 0x0404);
+    render_sprite(0x0404, testing, 0x0404);
 }

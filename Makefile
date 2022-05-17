@@ -19,7 +19,7 @@ example.tap: $(OBJECTS)
 	$(CC) $(CFLAGS) $(EXAMPLE_FLAGS) -o example $(OBJECTS)
 
 test: all
-	@z88dk-ticks -l 0x8000 -pc 0x8000 example__.bin
+	@expr `z88dk-ticks -l 0x8000 -pc 0x8000 example__.bin` - 3707
 
 clean:
 	@rm -rf *.o
